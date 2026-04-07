@@ -1,0 +1,77 @@
+.ip-hover-audit-wrapper {
+  cursor: help;
+  border-bottom: 1px dashed rgba(0, 123, 255, 0.35);
+}
+
+.ip-hover-audit-wrapper:focus {
+  outline: 2px solid rgba(0, 123, 255, 0.45);
+  outline-offset: 1px;
+}
+
+.ip-hover-audit-tooltip {
+  position: absolute;
+  z-index: 2147483647;
+  min-width: 320px;
+  max-width: 420px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #111827;
+  color: #f9fafb;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ip-hover-audit-tooltip.hidden {
+  display: none;
+}
+
+.ip-hover-audit-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.ip-hover-audit-row {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.ip-hover-audit-row .label {
+  color: #9ca3af;
+}
+
+.ip-hover-audit-row .value {
+  word-break: break-word;
+}
+
+.ip-hover-audit-row .value.level-high {
+  color: #f87171;
+  font-weight: 700;
+}
+
+.ip-hover-audit-row .value.level-medium {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.ip-hover-audit-row .value.level-low {
+  color: #34d399;
+  font-weight: 700;
+}
+
+.ip-hover-audit-note {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #d1d5db;
+}
+
+.ip-hover-audit-actions {
+  margin-top: 8px;
+  color: #93c5fd;
+  font-size: 12px;
+}

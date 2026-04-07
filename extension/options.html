@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IP 悬停审核助手 - 设置</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>IP 悬停审核助手</h1>
+      <p class="intro">适用于你个人在审核后台中快速区分机房 IP、家庭/住宅网络、代理/VPN 等情况。</p>
+
+      <form id="settings-form" class="card">
+        <label class="switch-row">
+          <span>启用插件</span>
+          <input type="checkbox" name="enabled" />
+        </label>
+
+        <label>
+          <span>允许启用的域名</span>
+          <textarea name="allowedHostsText" rows="5" placeholder="每行一个域名，例如：admin.example.com"></textarea>
+          <small>留空表示当前电脑上的所有网页都可启用。更安全的做法是只填你的公司后台域名。</small>
+        </label>
+
+        <div class="grid">
+          <label>
+            <span>悬停延迟（毫秒）</span>
+            <input type="number" name="hoverDelayMs" min="100" step="50" />
+          </label>
+
+          <label>
+            <span>缓存时长（小时）</span>
+            <input type="number" name="cacheTtlHours" min="1" step="1" />
+          </label>
+        </div>
+
+        <div class="grid">
+          <label>
+            <span>触发方式</span>
+            <select name="triggerMode">
+              <option value="hover">直接悬停</option>
+              <option value="alt-hover">按住 Alt 再悬停</option>
+            </select>
+          </label>
+
+          <label>
+            <span>主数据源</span>
+            <select name="preferredSource">
+              <option value="ipapi.is">ipapi.is</option>
+              <option value="ipquery">ipquery</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="grid">
+          <label>
+            <span>备用数据源</span>
+            <select name="fallbackSource">
+              <option value="ipquery">ipquery</option>
+              <option value="ipapi.is">ipapi.is</option>
+            </select>
+          </label>
+
+          <label class="switch-row">
+            <span>开启备用数据源</span>
+            <input type="checkbox" name="enableFallback" />
+          </label>
+        </div>
+
+        <label class="switch-row">
+          <span>展示判断依据</span>
+          <input type="checkbox" name="showReasons" />
+        </label>
+
+        <label class="switch-row">
+          <span>展示数据来源</span>
+          <input type="checkbox" name="showSource" />
+        </label>
+
+        <div class="actions">
+          <button type="submit">保存设置</button>
+          <button type="button" id="clear-cache">清空缓存</button>
+        </div>
+
+        <p id="status" class="status"></p>
+      </form>
+    </main>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "IP 悬停审核助手",
+  "version": "0.1.0",
+  "description": "在网页中悬停 IP 地址时，显示机房/住宅/代理/VPN 等中文信息卡片。",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://api.ipapi.is/*",
+    "https://api.ipquery.io/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/content-main.js"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ],
+  "action": {
+    "default_title": "IP 悬停审核助手"
+  }
+}
