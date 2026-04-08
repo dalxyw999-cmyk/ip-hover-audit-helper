@@ -1,6 +1,7 @@
 import { cacheTtlMs, loadConfig } from './lib/config.js';
 import { buildSourceOrder, DATA_SOURCE_ADAPTERS } from './lib/data-sources.js';
 import { classifyIpRecord } from './lib/classifier.js';
+import { summarizeIpConsensus } from './lib/ip-consensus.js';
 
 chrome.runtime.onInstalled.addListener(async () => {
   const settings = await loadConfig();
@@ -31,30 +32,51 @@ async function lookupIp(ip) {
     return { ...cachedEntry.payload, cacheHit: true };
   }
 
+  const sourceOrder = buildSourceOrder(settings);
+  const resultMap = new Map();
   const errors = [];
-  for (const sourceName of buildSourceOrder(settings)) {
+
+  await Promise.all(sourceOrder.map(async (sourceName) => {
     try {
       const normalized = await DATA_SOURCE_ADAPTERS[sourceName].fetch(ip);
       const classification = classifyIpRecord(normalized);
-      const payload = {
-        ip,
+      resultMap.set(sourceName, {
         source: normalized.source,
         normalized,
-        classification,
-        queriedAt: now,
-        cacheHit: false
-      };
-      await chrome.storage.local.set({
-        [cacheKey]: {
-          timestamp: now,
-          payload
-        }
+        classification
       });
-      return payload;
     } catch (error) {
       errors.push(`${sourceName}: ${error.message || String(error)}`);
     }
+  }));
+
+  const results = sourceOrder
+    .map((sourceName) => resultMap.get(sourceName))
+    .filter(Boolean);
+
+  if (!results.length) {
+    throw new Error(errors.length ? `全部数据源均失败：${errors.join('；')}` : '未配置可用数据源');
   }
 
-  throw new Error(errors.length ? `全部数据源均失败：${errors.join('；')}` : '未配置可用数据源');
+  const primary = results[0];
+  const payload = {
+    ip,
+    source: primary.source,
+    normalized: primary.normalized,
+    classification: primary.classification,
+    queriedAt: now,
+    cacheHit: false,
+    allResults: results,
+    consensus: summarizeIpConsensus(results),
+    errors
+  };
+
+  await chrome.storage.local.set({
+    [cacheKey]: {
+      timestamp: now,
+      payload
+    }
+  });
+
+  return payload;
 }

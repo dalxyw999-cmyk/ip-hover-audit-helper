@@ -252,7 +252,7 @@ function buildErrorPayload(ip, errorMessage) {
 }
 
 function buildResultPayload(payload) {
-  const { classification, source, cacheHit } = payload;
+  const { classification, source, cacheHit, allResults = [], consensus } = payload;
   const rows = [
     { label: 'IP 地址', value: payload.ip },
     { label: '网络属性', value: classification.networkType, level: levelFromRisk(classification.riskLevel) },
@@ -265,7 +265,15 @@ function buildResultPayload(payload) {
   ];
 
   if (settingsCache.showSource) {
-    rows.push({ label: '数据来源', value: source });
+    rows.push({ label: '主结果来源', value: source });
+  }
+
+  if (consensus?.text) {
+    rows.push({ label: '交叉验证', value: consensus.text, level: levelFromConsensus(consensus.level) });
+  }
+
+  if (allResults[1]) {
+    rows.push({ label: '备用源结果', value: `${allResults[1].source}：${allResults[1].classification.networkType} / ${allResults[1].classification.riskLevel}风险` });
   }
 
   rows.push({ label: '缓存状态', value: cacheHit ? '命中本地缓存' : '实时查询' });
@@ -274,7 +282,7 @@ function buildResultPayload(payload) {
     title: 'IP 信息速查',
     rows,
     note: settingsCache.showReasons ? `判断依据：${classification.reasons.join('；') || '无'}` : '',
-    actions: ['可在扩展设置页调整数据源、缓存和触发方式']
+    actions: ['双源一致时可信度更高；出现分歧时建议人工复核']
   };
 }
 
@@ -369,6 +377,15 @@ function levelFromPhoneVerdict(verdict) {
     case '疑似异常':
     case '无法添加': return 'high';
     case '待复核': return 'medium';
+    default: return 'medium';
+  }
+}
+
+function levelFromConsensus(level) {
+  switch (level) {
+    case 'match': return 'low';
+    case 'mismatch': return 'high';
+    case 'single': return 'medium';
     default: return 'medium';
   }
 }

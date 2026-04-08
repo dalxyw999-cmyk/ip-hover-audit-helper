@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { normalizeIpapiIsResponse, normalizeIpqueryResponse } from '../extension/lib/data-sources.js';
 import { classifyIpRecord } from '../extension/lib/classifier.js';
+import { summarizeIpConsensus } from '../extension/lib/ip-consensus.js';
 import { extractPhones, formatReviewTime, getPhoneReviewStorageKey } from '../extension/lib/phone-utils.js';
 
 test('ipapi.is 机房样本应被标准化并识别为机房', () => {
@@ -90,6 +91,24 @@ test('ipquery 结果应被标准化为统一结构', () => {
   assert.equal(normalized.asn.number, 13335);
   assert.equal(normalized.company.name, 'Cloudflare, Inc.');
   assert.equal(normalized.flags.isDatacenter, true);
+});
+
+test('双源一致时应返回一致性结论', () => {
+  const result = summarizeIpConsensus([
+    { source: 'ipapi.is', classification: { networkType: '机房/数据中心', riskLevel: '高' } },
+    { source: 'ipquery', classification: { networkType: '机房/数据中心', riskLevel: '高' } }
+  ]);
+  assert.equal(result.level, 'match');
+  assert.match(result.text, /双源一致/);
+});
+
+test('双源分歧时应提示人工复核', () => {
+  const result = summarizeIpConsensus([
+    { source: 'ipapi.is', classification: { networkType: '家庭/住宅网络', riskLevel: '低' } },
+    { source: 'ipquery', classification: { networkType: '机房/数据中心', riskLevel: '高' } }
+  ]);
+  assert.equal(result.level, 'mismatch');
+  assert.match(result.text, /人工复核/);
 });
 
 test('手机号提取应只匹配大陆手机号', () => {
