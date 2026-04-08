@@ -35,11 +35,11 @@ form.addEventListener('submit', async (event) => {
 
 clearCacheButton.addEventListener('click', async () => {
   const all = await chrome.storage.local.get(null);
-  const cacheKeys = Object.keys(all).filter((key) => key.startsWith('ip-cache:'));
+  const cacheKeys = Object.keys(all).filter((key) => key.startsWith('ip-cache:') || key.startsWith('phone-review:'));
   if (cacheKeys.length) {
     await chrome.storage.local.remove(cacheKeys);
   }
-  setStatus(`缓存已清空，共删除 ${cacheKeys.length} 条记录。`);
+  setStatus(`本地记录已清空，共删除 ${cacheKeys.length} 条记录。`);
 });
 
 function fillForm(settings) {

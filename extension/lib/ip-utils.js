@@ -20,10 +20,20 @@ export function isEligibleTextNode(node) {
 }
 
 export function wrapTextNodeIps(node) {
-  const text = node.textContent || '';
-  const matches = extractIps(text);
+  return wrapTextNodeMatches(node, extractIps(node.textContent || ''), {
+    kind: 'ip',
+    ariaLabel: (value) => `查询 IP ${value}`
+  });
+}
+
+export function wrapTextNodeCustom(node, matches, options) {
+  return wrapTextNodeMatches(node, matches, options);
+}
+
+function wrapTextNodeMatches(node, matches, options) {
   if (!matches.length) return false;
 
+  const text = node.textContent || '';
   const fragment = document.createDocumentFragment();
   let lastIndex = 0;
 
@@ -34,11 +44,12 @@ export function wrapTextNodeIps(node) {
 
     const span = document.createElement('span');
     span.className = 'ip-hover-audit-wrapper';
-    span.dataset.ip = match.value;
+    span.dataset.kind = options.kind;
+    span.dataset.value = match.value;
     span.textContent = match.value;
     span.setAttribute('tabindex', '0');
     span.setAttribute('role', 'button');
-    span.setAttribute('aria-label', `查询 IP ${match.value}`);
+    span.setAttribute('aria-label', options.ariaLabel(match.value));
     fragment.appendChild(span);
     lastIndex = match.end;
   });

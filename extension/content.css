@@ -75,3 +75,35 @@
   color: #93c5fd;
   font-size: 12px;
 }
+
+.ip-hover-audit-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ip-hover-audit-button {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f9fafb;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ip-hover-audit-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.ip-hover-audit-button.tone-primary {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.ip-hover-audit-button.tone-selected {
+  background: rgba(52, 211, 153, 0.18);
+  border-color: rgba(52, 211, 153, 0.45);
+  color: #6ee7b7;
+}

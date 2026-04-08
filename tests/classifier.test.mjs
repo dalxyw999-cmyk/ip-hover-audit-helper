@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { normalizeIpapiIsResponse, normalizeIpqueryResponse } from '../extension/lib/data-sources.js';
 import { classifyIpRecord } from '../extension/lib/classifier.js';
+import { extractPhones, formatReviewTime, getPhoneReviewStorageKey } from '../extension/lib/phone-utils.js';
 
 test('ipapi.is 机房样本应被标准化并识别为机房', () => {
   const normalized = normalizeIpapiIsResponse({
@@ -89,4 +90,15 @@ test('ipquery 结果应被标准化为统一结构', () => {
   assert.equal(normalized.asn.number, 13335);
   assert.equal(normalized.company.name, 'Cloudflare, Inc.');
   assert.equal(normalized.flags.isDatacenter, true);
+});
+
+test('手机号提取应只匹配大陆手机号', () => {
+  const matches = extractPhones('测试手机号 13800138000，备用 19912345678，座机 075512345678 不应命中');
+  assert.deepEqual(matches.map((item) => item.value), ['13800138000', '19912345678']);
+});
+
+test('手机号核验记录 key 和时间格式应稳定', () => {
+  assert.equal(getPhoneReviewStorageKey('13800138000'), 'phone-review:13800138000');
+  assert.match(formatReviewTime(Date.UTC(2026, 3, 8, 1, 5)), /^2026-04-08 \d{2}:05$/);
+  assert.equal(formatReviewTime(null), '暂无记录');
 });

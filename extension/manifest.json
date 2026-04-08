@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "IP 悬停审核助手",
+  "name": "IP / 手机号悬停审核助手",
   "version": "0.1.0",
-  "description": "在网页中悬停 IP 地址时，显示机房/住宅/代理/VPN 等中文信息卡片。",
+  "description": "在网页中悬停 IP 或手机号时，显示 IP 风险信息或手机号微信核验记录。",
   "permissions": ["storage"],
   "host_permissions": [
     "https://api.ipapi.is/*",

@@ -1,12 +1,14 @@
 import { loadConfig, isHostAllowed } from './config.js';
-import { isEligibleTextNode, wrapTextNodeIps } from './ip-utils.js';
+import { isEligibleTextNode, wrapTextNodeCustom, wrapTextNodeIps } from './ip-utils.js';
+import { extractPhones, PHONE_REVIEW_OPTIONS, formatReviewTime, getPhoneReviewStorageKey } from './phone-utils.js';
 
 const TOOLTIP_ID = 'ip-hover-audit-tooltip';
 let tooltipEl;
 let hoverTimer = null;
 let hideTimer = null;
-let activeIp = null;
+let activeLookupKey = null;
 let settingsCache = null;
+let activeTarget = null;
 
 bootstrapContentScript();
 
@@ -25,7 +27,7 @@ function observeMutations() {
     for (const mutation of mutations) {
       mutation.addedNodes.forEach((node) => {
         if (node.nodeType === Node.TEXT_NODE) {
-          if (isEligibleTextNode(node)) wrapTextNodeIps(node);
+          if (isEligibleTextNode(node)) scanTextNode(node);
         } else if (node.nodeType === Node.ELEMENT_NODE) {
           scanDocument(node);
         }
@@ -49,7 +51,17 @@ function scanDocument(root) {
       nodes.push(node);
     }
   }
-  nodes.forEach((node) => wrapTextNodeIps(node));
+  nodes.forEach((node) => scanTextNode(node));
+}
+
+function scanTextNode(node) {
+  if (wrapTextNodeIps(node)) return true;
+  const phones = extractPhones(node.textContent || '');
+  if (!phones.length) return false;
+  return wrapTextNodeCustom(node, phones, {
+    kind: 'phone',
+    ariaLabel: (value) => `核验手机号 ${value}`
+  });
 }
 
 function bindGlobalEvents() {
@@ -57,21 +69,29 @@ function bindGlobalEvents() {
   document.addEventListener('focusin', onPointerEnter, true);
   document.addEventListener('mouseout', onPointerLeave, true);
   document.addEventListener('focusout', onPointerLeave, true);
+  document.addEventListener('click', onDocumentClick, true);
 }
 
 function onPointerEnter(event) {
   const target = event.target?.closest?.('.ip-hover-audit-wrapper');
   if (!target) return;
+  activeTarget = target;
   clearTimeout(hideTimer);
   clearTimeout(hoverTimer);
 
   if (settingsCache.triggerMode === 'alt-hover' && !event.altKey) {
-    showTooltip(target, buildHintPayload(target.dataset.ip));
-    return;
+    if (target.dataset.kind === 'ip') {
+      showTooltip(target, buildHintPayload(target.dataset.value));
+      return;
+    }
   }
 
   hoverTimer = setTimeout(() => {
-    lookupAndRender(target);
+    if (target.dataset.kind === 'phone') {
+      lookupPhoneAndRender(target);
+      return;
+    }
+    lookupAndRenderIp(target);
   }, Number(settingsCache.hoverDelayMs || 400));
 }
 
@@ -80,6 +100,23 @@ function onPointerLeave(event) {
   if (!target) return;
   clearTimeout(hoverTimer);
   hideTimer = setTimeout(() => hideTooltip(), 120);
+}
+
+function onDocumentClick(event) {
+  const button = event.target?.closest?.('[data-action]');
+  if (!button || !tooltipEl || tooltipEl.classList.contains('hidden')) return;
+
+  const { action, phone, verdict } = button.dataset;
+  if (action === 'copy-phone' && phone) {
+    event.preventDefault();
+    copyPhone(phone);
+    return;
+  }
+
+  if (action === 'save-phone-verdict' && phone && verdict) {
+    event.preventDefault();
+    savePhoneVerdict(phone, verdict);
+  }
 }
 
 function ensureTooltip() {
@@ -114,21 +151,31 @@ function hideTooltip() {
   tooltipEl.classList.add('hidden');
 }
 
-async function lookupAndRender(target) {
-  const ip = target.dataset.ip;
+async function lookupAndRenderIp(target) {
+  const ip = target.dataset.value;
   if (!ip) return;
-  activeIp = ip;
+  activeLookupKey = `ip:${ip}`;
   showTooltip(target, buildLoadingPayload(ip));
 
   try {
     const response = await chrome.runtime.sendMessage({ type: 'LOOKUP_IP', ip });
-    if (activeIp !== ip) return;
+    if (activeLookupKey !== `ip:${ip}`) return;
     if (!response?.ok) throw new Error(response?.error || '查询失败');
     showTooltip(target, buildResultPayload(response.payload));
   } catch (error) {
-    if (activeIp !== ip) return;
+    if (activeLookupKey !== `ip:${ip}`) return;
     showTooltip(target, buildErrorPayload(ip, error.message || '查询失败'));
   }
+}
+
+async function lookupPhoneAndRender(target) {
+  const phone = target.dataset.value;
+  if (!phone) return;
+  activeLookupKey = `phone:${phone}`;
+  showTooltip(target, buildPhoneLoadingPayload(phone));
+  const review = await getPhoneReview(phone);
+  if (activeLookupKey !== `phone:${phone}`) return;
+  showTooltip(target, buildPhonePayload(phone, review));
 }
 
 function renderTooltipHtml(payload) {
@@ -139,16 +186,26 @@ function renderTooltipHtml(payload) {
     </div>
   `).join('');
 
-  const actions = payload.actions?.length
+  const actionText = payload.actions?.length
     ? `<div class="ip-hover-audit-actions">${payload.actions.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div>`
+    : '';
+
+  const actionButtons = payload.actionButtons?.length
+    ? `<div class="ip-hover-audit-button-row">${payload.actionButtons.map(renderActionButton).join('')}</div>`
     : '';
 
   return `
     <div class="ip-hover-audit-title">${escapeHtml(payload.title)}</div>
     ${rows}
     ${payload.note ? `<div class="ip-hover-audit-note">${escapeHtml(payload.note)}</div>` : ''}
-    ${actions}
+    ${actionText}
+    ${actionButtons}
   `;
+}
+
+function renderActionButton(button) {
+  const attrs = Object.entries(button.dataset || {}).map(([key, value]) => `data-${toKebabCase(key)}="${escapeHtml(value)}"`).join(' ');
+  return `<button type="button" class="ip-hover-audit-button ${button.tone ? `tone-${button.tone}` : ''}" ${attrs}>${escapeHtml(button.label)}</button>`;
 }
 
 function buildHintPayload(ip) {
@@ -172,6 +229,16 @@ function buildLoadingPayload(ip) {
   };
 }
 
+function buildPhoneLoadingPayload(phone) {
+  return {
+    title: '手机号核验助手',
+    rows: [
+      { label: '手机号', value: phone },
+      { label: '状态', value: '正在读取历史核验结果...' }
+    ]
+  };
+}
+
 function buildErrorPayload(ip, errorMessage) {
   return {
     title: 'IP 信息速查',
@@ -185,7 +252,7 @@ function buildErrorPayload(ip, errorMessage) {
 }
 
 function buildResultPayload(payload) {
-  const { classification, normalized, source, cacheHit } = payload;
+  const { classification, source, cacheHit } = payload;
   const rows = [
     { label: 'IP 地址', value: payload.ip },
     { label: '网络属性', value: classification.networkType, level: levelFromRisk(classification.riskLevel) },
@@ -211,12 +278,103 @@ function buildResultPayload(payload) {
   };
 }
 
+function buildPhonePayload(phone, review) {
+  const latestVerdict = review?.verdict || '未核验';
+  const reviewedAt = review?.updatedAt ? formatReviewTime(review.updatedAt) : '暂无记录';
+
+  return {
+    title: '手机号核验助手',
+    rows: [
+      { label: '手机号', value: phone },
+      { label: '微信核验', value: latestVerdict, level: levelFromPhoneVerdict(latestVerdict) },
+      { label: '最近更新', value: reviewedAt },
+      { label: '外部信息', value: '首版仅保存你的人工核验结果' }
+    ],
+    note: '先复制手机号去微信加好友核验，再回到这里点一个结果即可。',
+    actionButtons: [
+      {
+        label: '复制手机号',
+        tone: 'primary',
+        dataset: { action: 'copy-phone', phone }
+      },
+      ...PHONE_REVIEW_OPTIONS.map((verdict) => ({
+        label: verdict,
+        tone: latestVerdict === verdict ? 'selected' : 'secondary',
+        dataset: { action: 'save-phone-verdict', phone, verdict }
+      }))
+    ]
+  };
+}
+
+async function copyPhone(phone) {
+  try {
+    await navigator.clipboard.writeText(phone);
+    flashTooltipNote(`已复制手机号：${phone}`);
+  } catch {
+    const textarea = document.createElement('textarea');
+    textarea.value = phone;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+    flashTooltipNote(`已复制手机号：${phone}`);
+  }
+}
+
+async function savePhoneVerdict(phone, verdict) {
+  const key = getPhoneReviewStorageKey(phone);
+  const payload = {
+    phone,
+    verdict,
+    updatedAt: Date.now()
+  };
+  await chrome.storage.local.set({ [key]: payload });
+  if (activeTarget?.dataset?.value === phone) {
+    showTooltip(activeTarget, buildPhonePayload(phone, payload));
+  }
+}
+
+async function getPhoneReview(phone) {
+  const key = getPhoneReviewStorageKey(phone);
+  const stored = await chrome.storage.local.get(key);
+  return stored[key] || null;
+}
+
+function flashTooltipNote(message) {
+  const note = tooltipEl?.querySelector('.ip-hover-audit-note');
+  if (note) {
+    note.textContent = message;
+    return;
+  }
+  const tooltip = ensureTooltip();
+  const noteEl = document.createElement('div');
+  noteEl.className = 'ip-hover-audit-note';
+  noteEl.textContent = message;
+  tooltip.appendChild(noteEl);
+}
+
 function levelFromRisk(riskLevel) {
   switch (riskLevel) {
     case '高': return 'high';
     case '低': return 'low';
     default: return 'medium';
   }
+}
+
+function levelFromPhoneVerdict(verdict) {
+  switch (verdict) {
+    case '未见异常': return 'low';
+    case '疑似异常':
+    case '无法添加': return 'high';
+    case '待复核': return 'medium';
+    default: return 'medium';
+  }
+}
+
+function toKebabCase(text) {
+  return text.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
 }
 
 function escapeHtml(text) {
