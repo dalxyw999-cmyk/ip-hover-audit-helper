@@ -260,6 +260,7 @@ function buildResultPayload(payload) {
     { label: '城市', value: classification.locationCitySummary || '未知' },
     { label: '网络属性', value: classification.networkType, level: levelFromRisk(classification.riskLevel) },
     { label: '风险等级', value: classification.riskLevel, level: levelFromRisk(classification.riskLevel) },
+    { label: 'IP 欺诈值', value: `${classification.fraudScore ?? '未知'} / 100`, level: levelFromFraudScore(classification.fraudScore) },
     { label: '匿名属性', value: classification.anonymitySummary },
     { label: 'ASN', value: classification.asnSummary },
     { label: '运营商', value: classification.ispSummary },
@@ -282,6 +283,11 @@ function buildResultPayload(payload) {
 
   return {
     title: 'IP 信息速查',
+    badges: [
+      { text: classification.networkType, level: levelFromRisk(classification.riskLevel) },
+      { text: `${classification.riskLevel}风险`, level: levelFromRisk(classification.riskLevel) },
+      { text: `欺诈值 ${classification.fraudScore ?? '未知'}`, level: levelFromFraudScore(classification.fraudScore) }
+    ],
     rows,
     note: settingsCache.showReasons ? `判断依据：${classification.reasons.join('；') || '无'}` : '',
     actions: ['双源一致时可信度更高；出现分歧时建议人工复核']
@@ -390,6 +396,13 @@ function levelFromConsensus(level) {
     case 'single': return 'medium';
     default: return 'medium';
   }
+}
+
+function levelFromFraudScore(score) {
+  if (typeof score !== 'number') return 'medium';
+  if (score >= 80) return 'high';
+  if (score <= 35) return 'low';
+  return 'medium';
 }
 
 function toKebabCase(text) {

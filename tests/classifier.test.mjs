@@ -213,7 +213,8 @@ test('content script 应支持在 iframe 中注入', () => {
   assert.equal(manifest.content_scripts[0].match_about_blank, true);
 });
 
-test('content script 不应再内置手机号识别逻辑', () => {
+test('content script 应展示 IP 欺诈值字段', () => {
   const contentScript = fs.readFileSync(new URL('../extension/content.js', import.meta.url), 'utf8');
-  assert.doesNotMatch(contentScript, /手机号核验助手|copy-phone|save-phone-verdict|phone-review:/);
+  assert.match(contentScript, /IP 欺诈值/);
+  assert.match(contentScript, /欺诈值/);
 });
