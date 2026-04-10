@@ -56,6 +56,9 @@ export function normalizeIpapiIsResponse(data) {
       proxy: Boolean(data.is_proxy),
       vpn: Boolean(data.is_vpn || data.vpn),
       tor: Boolean(data.is_tor)
+    },
+    risk: {
+      score: null
     }
   };
 }
@@ -105,6 +108,9 @@ export function normalizeIpqueryResponse(data) {
       proxy: Boolean(data.risk?.is_proxy),
       vpn: Boolean(data.risk?.is_vpn),
       tor: Boolean(data.risk?.is_tor)
+    },
+    risk: {
+      score: Number.isFinite(Number(data.risk?.risk_score)) ? Number(data.risk.risk_score) : null
     }
   };
 }

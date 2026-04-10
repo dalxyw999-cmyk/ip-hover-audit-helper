@@ -111,6 +111,84 @@ test('双源分歧时应提示人工复核', () => {
   assert.match(result.text, /人工复核/);
 });
 
+test('IP 欺诈值应随风险特征升高而上升', () => {
+  const residential = classifyIpRecord(normalizeIpapiIsResponse({
+    ip: '32.5.140.2',
+    is_datacenter: false,
+    is_proxy: false,
+    is_vpn: false,
+    is_tor: false,
+    is_mobile: false,
+    company: { name: 'AT&T Global Network Services, LLC', type: 'isp', domain: 'att.com' },
+    asn: { asn: 7018, org: 'AT&T Enterprises, LLC', type: 'isp', route: '32.0.0.0/9' },
+    location: { country: 'United States', state: 'Virginia', city: 'Ashburn' }
+  }));
+
+  const datacenter = classifyIpRecord(normalizeIpapiIsResponse({
+    ip: '8.8.8.8',
+    is_datacenter: true,
+    is_proxy: false,
+    is_vpn: false,
+    is_tor: false,
+    is_mobile: false,
+    company: { name: 'Google LLC', type: 'hosting', domain: 'google.com' },
+    asn: { asn: 15169, org: 'Google LLC', type: 'hosting', route: '8.8.8.0/24' },
+    location: { country: 'United States', state: 'California', city: 'Mountain View' }
+  }));
+
+  const proxyVpn = classifyIpRecord(normalizeIpapiIsResponse({
+    ip: '203.0.113.5',
+    is_datacenter: false,
+    is_proxy: true,
+    is_vpn: true,
+    is_tor: false,
+    is_mobile: false,
+    company: { name: 'Example Privacy', type: 'business', domain: 'example.com' },
+    asn: { asn: 64512, org: 'Example Privacy', type: 'business', route: '203.0.113.0/24' },
+    location: { country: 'Japan', state: 'Tokyo', city: 'Tokyo' }
+  }));
+
+  assert.ok(typeof residential.fraudScore === 'number');
+  assert.ok(residential.fraudScore < datacenter.fraudScore);
+  assert.ok(datacenter.fraudScore < proxyVpn.fraudScore);
+  assert.ok(residential.fraudScore <= 35);
+  assert.ok(datacenter.fraudScore >= 70);
+  assert.ok(proxyVpn.fraudScore >= 85);
+});
+
+test('ipquery 的 risk_score 应影响 IP 欺诈值', () => {
+  const lowRisk = classifyIpRecord(normalizeIpqueryResponse({
+    ip: '198.51.100.10',
+    isp: { asn: 'AS64500', org: 'Example ISP', isp: 'Example ISP' },
+    location: { country: 'US', state: 'CA', city: 'LA' },
+    risk: {
+      is_mobile: false,
+      is_vpn: false,
+      is_tor: false,
+      is_proxy: false,
+      is_datacenter: false,
+      risk_score: 8
+    }
+  }));
+
+  const highRisk = classifyIpRecord(normalizeIpqueryResponse({
+    ip: '198.51.100.11',
+    isp: { asn: 'AS64501', org: 'Example Privacy', isp: 'Example Privacy' },
+    location: { country: 'US', state: 'CA', city: 'LA' },
+    risk: {
+      is_mobile: false,
+      is_vpn: true,
+      is_tor: false,
+      is_proxy: true,
+      is_datacenter: false,
+      risk_score: 92
+    }
+  }));
+
+  assert.ok(highRisk.fraudScore > lowRisk.fraudScore);
+  assert.ok(highRisk.fraudScore >= 90);
+});
+
 test('手机号提取应只匹配大陆手机号', () => {
   const matches = extractPhones('测试手机号 13800138000，备用 19912345678，座机 075512345678 不应命中');
   assert.deepEqual(matches.map((item) => item.value), ['13800138000', '19912345678']);

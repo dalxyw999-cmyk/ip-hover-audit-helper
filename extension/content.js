@@ -284,6 +284,10 @@ async function lookupPhoneAndRender(target) {
 }
 
 function renderTooltipHtml(payload) {
+  const badges = payload.badges?.length
+    ? `<div class="ip-hover-audit-badges">${payload.badges.map(renderBadge).join('')}</div>`
+    : '';
+
   const rows = payload.rows.map((row) => `
     <div class="ip-hover-audit-row">
       <span class="label">${escapeHtml(row.label)}</span>
@@ -300,12 +304,26 @@ function renderTooltipHtml(payload) {
     : '';
 
   return `
-    <div class="ip-hover-audit-title">${escapeHtml(payload.title)}</div>
-    ${rows}
+    <div class="ip-hover-audit-header">
+      <div class="ip-hover-audit-title-row">
+        <div>
+          <div class="ip-hover-audit-title">${escapeHtml(payload.title)}</div>
+          ${payload.subtitle ? `<div class="ip-hover-audit-subtitle">${escapeHtml(payload.subtitle)}</div>` : ''}
+        </div>
+      </div>
+      ${badges}
+    </div>
+    <div class="ip-hover-audit-body">
+      ${rows}
+    </div>
     ${payload.note ? `<div class="ip-hover-audit-note">${escapeHtml(payload.note)}</div>` : ''}
     ${actionText}
     ${actionButtons}
   `;
+}
+
+function renderBadge(badge) {
+  return `<span class="ip-hover-audit-badge ${badge.level ? `level-${badge.level}` : ''}">${escapeHtml(badge.text)}</span>`;
 }
 
 function renderActionButton(button) {
@@ -316,6 +334,10 @@ function renderActionButton(button) {
 function buildHintPayload(ip) {
   return {
     title: 'IP 信息速查',
+    subtitle: ip,
+    badges: [
+      { text: 'Alt + 悬停触发', level: 'medium' }
+    ],
     rows: [
       { label: 'IP 地址', value: ip },
       { label: '触发方式', value: '当前为 Alt + 悬停模式' }
@@ -327,6 +349,10 @@ function buildHintPayload(ip) {
 function buildLoadingPayload(ip) {
   return {
     title: 'IP 信息速查',
+    subtitle: ip,
+    badges: [
+      { text: '查询中', level: 'medium' }
+    ],
     rows: [
       { label: 'IP 地址', value: ip },
       { label: '状态', value: '正在查询 IP 信息...' }
@@ -337,6 +363,10 @@ function buildLoadingPayload(ip) {
 function buildPhoneLoadingPayload(phone) {
   return {
     title: '手机号核验助手',
+    subtitle: phone,
+    badges: [
+      { text: '读取中', level: 'medium' }
+    ],
     rows: [
       { label: '手机号', value: phone },
       { label: '状态', value: '正在读取历史核验结果...' }
@@ -347,9 +377,13 @@ function buildPhoneLoadingPayload(phone) {
 function buildErrorPayload(ip, errorMessage) {
   return {
     title: 'IP 信息速查',
+    subtitle: ip,
+    badges: [
+      { text: '查询失败', level: 'high' }
+    ],
     rows: [
       { label: 'IP 地址', value: ip },
-      { label: '状态', value: '查询失败' },
+      { label: '状态', value: '查询失败', level: 'high' },
       { label: '原因', value: errorMessage }
     ],
     note: '你可以在扩展设置页切换主数据源或调整域名白名单。'
@@ -362,6 +396,7 @@ function buildResultPayload(payload) {
     { label: 'IP 地址', value: payload.ip },
     { label: '网络属性', value: classification.networkType, level: levelFromRisk(classification.riskLevel) },
     { label: '风险等级', value: classification.riskLevel, level: levelFromRisk(classification.riskLevel) },
+    { label: 'IP 欺诈值', value: `${classification.fraudScore ?? '未知'} / 100`, level: levelFromFraudScore(classification.fraudScore) },
     { label: '匿名属性', value: classification.anonymitySummary },
     { label: '国家/地区', value: classification.locationSummary },
     { label: 'ASN', value: classification.asnSummary },
@@ -385,6 +420,12 @@ function buildResultPayload(payload) {
 
   return {
     title: 'IP 信息速查',
+    subtitle: payload.ip,
+    badges: [
+      { text: classification.networkType, level: levelFromRisk(classification.riskLevel) },
+      { text: `${classification.riskLevel}风险`, level: levelFromRisk(classification.riskLevel) },
+      { text: `欺诈值 ${classification.fraudScore ?? '未知'}`, level: levelFromFraudScore(classification.fraudScore) }
+    ],
     rows,
     note: settingsCache.showReasons ? `判断依据：${classification.reasons.join('；') || '无'}` : '',
     actions: ['双源一致时可信度更高；出现分歧时建议人工复核']
@@ -397,6 +438,10 @@ function buildPhonePayload(phone, review) {
 
   return {
     title: '手机号核验助手',
+    subtitle: phone,
+    badges: [
+      { text: latestVerdict, level: levelFromPhoneVerdict(latestVerdict) }
+    ],
     rows: [
       { label: '手机号', value: phone },
       { label: '微信核验', value: latestVerdict, level: levelFromPhoneVerdict(latestVerdict) },
@@ -505,6 +550,13 @@ function levelFromConsensus(level) {
     case 'single': return 'medium';
     default: return 'medium';
   }
+}
+
+function levelFromFraudScore(score) {
+  if (typeof score !== 'number') return 'medium';
+  if (score >= 80) return 'high';
+  if (score <= 35) return 'low';
+  return 'medium';
 }
 
 function toKebabCase(text) {
