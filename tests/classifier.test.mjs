@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import fs from 'node:fs';
+
 import { normalizeIpapiIsResponse, normalizeIpqueryResponse } from '../extension/lib/data-sources.js';
 import { classifyIpRecord } from '../extension/lib/classifier.js';
 import { summarizeIpConsensus } from '../extension/lib/ip-consensus.js';
@@ -187,6 +189,12 @@ test('ipquery 的 risk_score 应影响 IP 欺诈值', () => {
 
   assert.ok(highRisk.fraudScore > lowRisk.fraudScore);
   assert.ok(highRisk.fraudScore >= 90);
+});
+
+test('content script 应支持在 iframe 中注入', () => {
+  const manifest = JSON.parse(fs.readFileSync(new URL('../extension/manifest.json', import.meta.url), 'utf8'));
+  assert.equal(manifest.content_scripts[0].all_frames, true);
+  assert.equal(manifest.content_scripts[0].match_about_blank, true);
 });
 
 test('手机号提取应只匹配大陆手机号', () => {

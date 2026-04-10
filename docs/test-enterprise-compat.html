@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>后台兼容性测试页</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 32px; }
+      .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+      iframe { width: 100%; height: 120px; border: 1px solid #ddd; border-radius: 10px; }
+      input { width: 320px; padding: 8px 10px; }
+    </style>
+  </head>
+  <body>
+    <h1>后台兼容性测试页</h1>
+
+    <div class="card">
+      <strong>普通文本：</strong> 8.8.8.8
+    </div>
+
+    <div class="card">
+      <strong>只读输入框：</strong>
+      <input type="text" readonly value="1.1.1.1" />
+    </div>
+
+    <div class="card">
+      <strong>iframe 内容：</strong>
+      <iframe srcdoc="<!doctype html><html><body style='font-family:sans-serif;padding:16px;'>附加IP：223.5.5.5</body></html>"></iframe>
+    </div>
+
+    <div class="card">
+      <strong>Shadow DOM：</strong>
+      <div id="shadow-host"></div>
+    </div>
+
+    <script>
+      const host = document.getElementById('shadow-host');
+      const shadow = host.attachShadow({ mode: 'open' });
+      shadow.innerHTML = `<div style="padding:8px 0;">Shadow IP：114.114.114.114</div>`;
+    </script>
+  </body>
+</html>

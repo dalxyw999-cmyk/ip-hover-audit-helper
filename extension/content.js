@@ -32,6 +32,7 @@ async function bootstrapContentScript() {
   if (!settingsCache.enabled) return;
   if (!isHostAllowed(window.location.hostname, settingsCache)) return;
 
+  patchAttachShadow();
   scanDocument(document.body);
   observeMutations();
   bindGlobalEvents();
@@ -56,28 +57,45 @@ function isHostAllowed(hostname, settings) {
   return rules.some((rule) => host === rule || host.endsWith(`.${rule}`));
 }
 
-function observeMutations() {
+function observeMutations(root = document.body) {
+  if (!root) return;
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
+      if (mutation.type === 'characterData') {
+        const node = mutation.target;
+        if (isEligibleTextNode(node)) scanTextNode(node);
+        continue;
+      }
+
       mutation.addedNodes.forEach((node) => {
         if (node.nodeType === Node.TEXT_NODE) {
           if (isEligibleTextNode(node)) scanTextNode(node);
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
+        } else if (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
           scanDocument(node);
         }
       });
     }
   });
 
-  observer.observe(document.body, {
+  observer.observe(root, {
     childList: true,
-    subtree: true
+    subtree: true,
+    characterData: true
   });
 }
 
 function scanDocument(root) {
   if (!root) return;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+
+  if (root.nodeType === Node.TEXT_NODE) {
+    if (isEligibleTextNode(root)) scanTextNode(root);
+    return;
+  }
+
+  if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return;
+
+  const doc = root.ownerDocument || document;
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const nodes = [];
   while (walker.nextNode()) {
     const node = walker.currentNode;
@@ -86,6 +104,9 @@ function scanDocument(root) {
     }
   }
   nodes.forEach((node) => scanTextNode(node));
+
+  scanValueElements(root);
+  scanShadowRoots(root);
 }
 
 function scanTextNode(node) {
@@ -124,6 +145,88 @@ function isEligibleTextNode(node) {
   if (['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT'].includes(tag)) return false;
   if (parent.closest('.ip-hover-audit-ignore, .ip-hover-audit-wrapper')) return false;
   return true;
+}
+
+function scanShadowRoots(root) {
+  const elementRoots = [];
+  if (root.nodeType === Node.ELEMENT_NODE && root.shadowRoot) {
+    elementRoots.push(root.shadowRoot);
+  }
+  if (root.querySelectorAll) {
+    root.querySelectorAll('*').forEach((element) => {
+      if (element.shadowRoot) elementRoots.push(element.shadowRoot);
+    });
+  }
+  elementRoots.forEach((shadowRoot) => {
+    scanDocument(shadowRoot);
+    observeMutations(shadowRoot);
+  });
+}
+
+function patchAttachShadow() {
+  if (window.__ipHoverAuditShadowPatched) return;
+  window.__ipHoverAuditShadowPatched = true;
+  const originalAttachShadow = Element.prototype.attachShadow;
+  Element.prototype.attachShadow = function patchedAttachShadow(init) {
+    const shadowRoot = originalAttachShadow.call(this, init);
+    if (init?.mode === 'open') {
+      queueMicrotask(() => {
+        scanDocument(shadowRoot);
+        observeMutations(shadowRoot);
+      });
+    }
+    return shadowRoot;
+  };
+}
+
+function scanValueElements(root) {
+  if (!root || !root.querySelectorAll) return;
+  root.querySelectorAll('input, textarea').forEach((element) => decorateValueElement(element));
+}
+
+function decorateValueElement(element) {
+  const match = getDecoratableValueMatch(element);
+  if (!match) {
+    if (element.dataset.ipHoverAuditValueDecorated === 'true') {
+      element.classList.remove('ip-hover-audit-wrapper');
+      delete element.dataset.ipHoverAuditValueDecorated;
+      delete element.dataset.kind;
+      delete element.dataset.value;
+    }
+    return;
+  }
+
+  element.classList.add('ip-hover-audit-wrapper');
+  element.dataset.kind = match.kind;
+  element.dataset.value = match.value;
+  element.dataset.ipHoverAuditValueDecorated = 'true';
+  element.setAttribute('tabindex', element.getAttribute('tabindex') || '0');
+  element.setAttribute('role', element.getAttribute('role') || 'button');
+  element.setAttribute('aria-label', match.kind === 'ip' ? `查询 IP ${match.value}` : `核验手机号 ${match.value}`);
+}
+
+function getDecoratableValueMatch(element) {
+  if (!element || !('value' in element)) return null;
+  if (!element.readOnly) return null;
+  const tag = element.tagName;
+  if (!['INPUT', 'TEXTAREA'].includes(tag)) return null;
+  const type = String(element.type || '').toLowerCase();
+  if (tag === 'INPUT' && type && !['text', 'search', 'url', 'tel', ''].includes(type)) return null;
+
+  const value = String(element.value || '').trim();
+  if (!value) return null;
+
+  const ipMatches = extractIps(value);
+  if (ipMatches.length === 1 && ipMatches[0].value === value) {
+    return { kind: 'ip', value };
+  }
+
+  const phoneMatches = extractPhones(value);
+  if (phoneMatches.length === 1 && phoneMatches[0].value === value) {
+    return { kind: 'phone', value };
+  }
+
+  return null;
 }
 
 function wrapTextNodeIps(node) {
@@ -178,7 +281,7 @@ function bindGlobalEvents() {
 }
 
 function onPointerEnter(event) {
-  const target = event.target?.closest?.('.ip-hover-audit-wrapper');
+  const target = findInteractiveTarget(event);
   if (!target) return;
   activeTarget = target;
   clearTimeout(hideTimer);
@@ -201,7 +304,7 @@ function onPointerEnter(event) {
 }
 
 function onPointerLeave(event) {
-  const target = event.target?.closest?.('.ip-hover-audit-wrapper');
+  const target = findInteractiveTarget(event);
   if (!target) return;
   clearTimeout(hoverTimer);
   hideTimer = setTimeout(() => hideTooltip(), 120);
@@ -222,6 +325,20 @@ function onDocumentClick(event) {
     event.preventDefault();
     savePhoneVerdict(phone, verdict);
   }
+}
+
+function findInteractiveTarget(event) {
+  const path = event.composedPath?.() || [];
+  for (const item of path) {
+    if (item?.classList?.contains?.('ip-hover-audit-wrapper')) {
+      return item;
+    }
+    if (item?.closest) {
+      const target = item.closest('.ip-hover-audit-wrapper');
+      if (target) return target;
+    }
+  }
+  return event.target?.closest?.('.ip-hover-audit-wrapper') || null;
 }
 
 function ensureTooltip() {
