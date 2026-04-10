@@ -255,10 +255,12 @@ function buildResultPayload(payload) {
   const { classification, source, cacheHit, allResults = [], consensus } = payload;
   const rows = [
     { label: 'IP 地址', value: payload.ip },
+    { label: '国家/地区', value: classification.locationCountrySummary || '未知' },
+    { label: '州/省', value: classification.locationRegionSummary || '未知' },
+    { label: '城市', value: classification.locationCitySummary || '未知' },
     { label: '网络属性', value: classification.networkType, level: levelFromRisk(classification.riskLevel) },
     { label: '风险等级', value: classification.riskLevel, level: levelFromRisk(classification.riskLevel) },
     { label: '匿名属性', value: classification.anonymitySummary },
-    { label: '国家/地区', value: classification.locationSummary },
     { label: 'ASN', value: classification.asnSummary },
     { label: '运营商', value: classification.ispSummary },
     { label: '组织名称', value: classification.companySummary }

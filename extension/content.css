@@ -21,31 +21,76 @@
   z-index: 2147483647;
   min-width: 340px;
   max-width: 420px;
-  padding: 16px;
+  padding: 0;
   border-radius: 18px;
-  background:
-    radial-gradient(circle at top right, rgba(96, 165, 250, 0.18), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
   color: #0f172a;
   border: 1px solid rgba(148, 163, 184, 0.2);
   box-shadow:
     0 28px 60px rgba(15, 23, 42, 0.18),
-    0 10px 24px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    0 10px 24px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(18px);
   font-size: 13px;
   line-height: 1.45;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow: hidden;
 }
 
 .ip-hover-audit-tooltip.hidden {
   display: none;
 }
 
+.ip-hover-audit-card {
+  position: relative;
+  padding: 16px;
+  background:
+    radial-gradient(circle at top right, rgba(96, 165, 250, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+}
+
+.ip-hover-audit-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, #64748b, #94a3b8);
+}
+
+.ip-hover-audit-card.theme-danger {
+  background:
+    radial-gradient(circle at top right, rgba(248, 113, 113, 0.22), transparent 34%),
+    linear-gradient(180deg, rgba(255, 250, 250, 0.99), rgba(254, 242, 242, 0.98));
+}
+
+.ip-hover-audit-card.theme-danger::before {
+  background: linear-gradient(90deg, #dc2626, #f97316);
+}
+
+.ip-hover-audit-card.theme-safe {
+  background:
+    radial-gradient(circle at top right, rgba(74, 222, 128, 0.22), transparent 34%),
+    linear-gradient(180deg, rgba(249, 255, 251, 0.99), rgba(236, 253, 245, 0.98));
+}
+
+.ip-hover-audit-card.theme-safe::before {
+  background: linear-gradient(90deg, #16a34a, #10b981);
+}
+
+.ip-hover-audit-card.theme-neutral {
+  background:
+    radial-gradient(circle at top right, rgba(96, 165, 250, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+}
+
+.ip-hover-audit-card.theme-neutral::before {
+  background: linear-gradient(90deg, #475569, #64748b);
+}
+
 .ip-hover-audit-header {
   position: relative;
-  margin: -2px -2px 12px;
-  padding: 4px 4px 12px;
+  margin: 4px -2px 12px;
+  padding: 0 4px 12px;
 }
 
 .ip-hover-audit-header::after {
@@ -56,6 +101,14 @@
   bottom: 0;
   height: 1px;
   background: linear-gradient(90deg, rgba(59, 130, 246, 0.18), rgba(148, 163, 184, 0.12), rgba(59, 130, 246, 0.18));
+}
+
+.ip-hover-audit-card.theme-danger .ip-hover-audit-header::after {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.22), rgba(252, 165, 165, 0.18), rgba(239, 68, 68, 0.22));
+}
+
+.ip-hover-audit-card.theme-safe .ip-hover-audit-header::after {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.22), rgba(134, 239, 172, 0.18), rgba(34, 197, 94, 0.22));
 }
 
 .ip-hover-audit-title-row {
@@ -132,9 +185,19 @@
   align-items: start;
   padding: 9px 10px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.66);
   border: 1px solid rgba(226, 232, 240, 0.72);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.ip-hover-audit-card.theme-danger .ip-hover-audit-row {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(252, 165, 165, 0.42);
+}
+
+.ip-hover-audit-card.theme-safe .ip-hover-audit-row {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(134, 239, 172, 0.42);
 }
 
 .ip-hover-audit-row .label {
@@ -175,11 +238,33 @@
   color: #475569;
 }
 
+.ip-hover-audit-card.theme-danger .ip-hover-audit-note {
+  background: rgba(255, 245, 245, 0.92);
+  border-color: rgba(252, 165, 165, 0.45);
+}
+
+.ip-hover-audit-card.theme-safe .ip-hover-audit-note {
+  background: rgba(240, 253, 244, 0.94);
+  border-color: rgba(134, 239, 172, 0.45);
+}
+
 .ip-hover-audit-actions {
   background: linear-gradient(180deg, rgba(239, 246, 255, 0.92), rgba(219, 234, 254, 0.78));
   border: 1px solid rgba(147, 197, 253, 0.35);
   color: #1d4ed8;
   font-weight: 500;
+}
+
+.ip-hover-audit-card.theme-danger .ip-hover-audit-actions {
+  background: linear-gradient(180deg, rgba(254, 242, 242, 0.94), rgba(254, 226, 226, 0.9));
+  border-color: rgba(248, 113, 113, 0.34);
+  color: #b91c1c;
+}
+
+.ip-hover-audit-card.theme-safe .ip-hover-audit-actions {
+  background: linear-gradient(180deg, rgba(240, 253, 244, 0.94), rgba(220, 252, 231, 0.9));
+  border-color: rgba(74, 222, 128, 0.34);
+  color: #15803d;
 }
 
 .ip-hover-audit-button-row {

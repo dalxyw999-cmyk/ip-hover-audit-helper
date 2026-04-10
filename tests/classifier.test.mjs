@@ -6,7 +6,6 @@ import fs from 'node:fs';
 import { normalizeIpapiIsResponse, normalizeIpqueryResponse } from '../extension/lib/data-sources.js';
 import { classifyIpRecord } from '../extension/lib/classifier.js';
 import { summarizeIpConsensus } from '../extension/lib/ip-consensus.js';
-import { extractPhones, formatReviewTime, getPhoneReviewStorageKey } from '../extension/lib/phone-utils.js';
 
 test('ipapi.is 机房样本应被标准化并识别为机房', () => {
   const normalized = normalizeIpapiIsResponse({
@@ -191,19 +190,30 @@ test('ipquery 的 risk_score 应影响 IP 欺诈值', () => {
   assert.ok(highRisk.fraudScore >= 90);
 });
 
+test('地理位置应尽量中文化展示', () => {
+  const result = classifyIpRecord(normalizeIpapiIsResponse({
+    ip: '203.0.113.8',
+    is_datacenter: false,
+    is_proxy: false,
+    is_vpn: false,
+    is_tor: false,
+    is_mobile: false,
+    company: { name: 'Alibaba', type: 'business', domain: 'alibaba.com' },
+    asn: { asn: 45102, org: 'Alibaba', type: 'business', route: '203.0.113.0/24' },
+    location: { country: 'China', country_code: 'CN', state: 'Zhejiang', city: 'Hangzhou' }
+  }));
+
+  assert.match(result.locationCountrySummary, /中国/);
+  assert.match(result.locationCitySummary, /杭州/);
+});
+
 test('content script 应支持在 iframe 中注入', () => {
   const manifest = JSON.parse(fs.readFileSync(new URL('../extension/manifest.json', import.meta.url), 'utf8'));
   assert.equal(manifest.content_scripts[0].all_frames, true);
   assert.equal(manifest.content_scripts[0].match_about_blank, true);
 });
 
-test('手机号提取应只匹配大陆手机号', () => {
-  const matches = extractPhones('测试手机号 13800138000，备用 19912345678，座机 075512345678 不应命中');
-  assert.deepEqual(matches.map((item) => item.value), ['13800138000', '19912345678']);
-});
-
-test('手机号核验记录 key 和时间格式应稳定', () => {
-  assert.equal(getPhoneReviewStorageKey('13800138000'), 'phone-review:13800138000');
-  assert.match(formatReviewTime(Date.UTC(2026, 3, 8, 1, 5)), /^2026-04-08 \d{2}:05$/);
-  assert.equal(formatReviewTime(null), '暂无记录');
+test('content script 不应再内置手机号识别逻辑', () => {
+  const contentScript = fs.readFileSync(new URL('../extension/content.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(contentScript, /手机号核验助手|copy-phone|save-phone-verdict|phone-review:/);
 });

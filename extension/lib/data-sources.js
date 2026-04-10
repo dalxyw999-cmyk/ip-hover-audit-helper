@@ -36,7 +36,9 @@ export function normalizeIpapiIsResponse(data) {
     },
     location: {
       country: data.location?.country || '',
+      countryCode: data.location?.country_code || data.location?.country_code_alpha2 || '',
       region: data.location?.state || '',
+      regionCode: data.location?.state_code || data.location?.region_code || '',
       city: data.location?.city || ''
     },
     asn: {
@@ -88,7 +90,9 @@ export function normalizeIpqueryResponse(data) {
     },
     location: {
       country: data.location?.country || '',
+      countryCode: data.location?.country_code || data.location?.country_code_alpha2 || '',
       region: data.location?.state || '',
+      regionCode: data.location?.state_code || data.location?.region_code || '',
       city: data.location?.city || ''
     },
     asn: {

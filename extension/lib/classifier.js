@@ -10,6 +10,47 @@ const RESIDENTIAL_KEYWORDS = [
 ];
 
 const BUSINESS_KEYWORDS = ['enterprise', 'business', 'corp', 'corporation', 'company'];
+const CITY_NAME_ZH_MAP = {
+  hangzhou: '杭州',
+  beijing: '北京',
+  shanghai: '上海',
+  shenzhen: '深圳',
+  guangzhou: '广州',
+  chengdu: '成都',
+  wuhan: '武汉',
+  nanjing: '南京',
+  suzhou: '苏州',
+  xian: '西安',
+  "xi'an": '西安',
+  chongqing: '重庆',
+  tianjin: '天津',
+  changsha: '长沙',
+  zhengzhou: '郑州',
+  ningbo: '宁波',
+  qingdao: '青岛',
+  xiamen: '厦门',
+  foshan: '佛山',
+  dongguan: '东莞',
+  mountainview: '山景城',
+  'mountain view': '山景城',
+  singapore: '新加坡',
+  tokyo: '东京',
+  osaka: '大阪',
+  seoul: '首尔',
+  london: '伦敦',
+  paris: '巴黎',
+  berlin: '柏林',
+  moscow: '莫斯科',
+  sydney: '悉尼',
+  melbourne: '墨尔本',
+  brisbane: '布里斯班',
+  losangeles: '洛杉矶',
+  'los angeles': '洛杉矶',
+  newyork: '纽约',
+  'new york': '纽约',
+  sanfrancisco: '旧金山',
+  'san francisco': '旧金山'
+};
 
 function contains(text, keywords) {
   const value = String(text || '').toLowerCase();
@@ -72,6 +113,10 @@ export function classifyIpRecord(record) {
 }
 
 function buildResult(networkType, riskLevel, anonymitySummary, reasons, record, baseFraudScore) {
+  const locationCountrySummary = localizeCountry(record.location?.countryCode, record.location?.country);
+  const locationRegionSummary = localizeRegion(record.location?.region, record.location?.countryCode);
+  const locationCitySummary = localizeCity(record.location?.city, record.location?.countryCode);
+
   return {
     ip: record.ip,
     source: record.source,
@@ -80,11 +125,54 @@ function buildResult(networkType, riskLevel, anonymitySummary, reasons, record, 
     anonymitySummary,
     reasons,
     fraudScore: computeFraudScore(baseFraudScore, record),
-    locationSummary: [record.location?.country, record.location?.region, record.location?.city].filter(Boolean).join(' / ') || '未知',
+    locationCountrySummary,
+    locationRegionSummary,
+    locationCitySummary,
+    locationSummary: [locationCountrySummary, locationRegionSummary, locationCitySummary].filter(Boolean).join(' / ') || '未知',
     asnSummary: record.asn?.number ? `AS${record.asn.number} ${record.asn.org || ''}`.trim() : (record.asn?.org || '未知'),
     ispSummary: record.isp || record.provider || record.company?.name || '未知',
     companySummary: record.company?.name || record.asn?.org || '未知'
   };
+}
+
+function localizeCountry(countryCode, countryName) {
+  const code = String(countryCode || '').toUpperCase();
+  if (code) {
+    try {
+      const display = new Intl.DisplayNames(['zh-CN'], { type: 'region' }).of(code);
+      if (display) return `${display}${countryName && display !== countryName ? ` (${code})` : ''}`;
+    } catch {}
+  }
+  return countryName || '未知';
+}
+
+function localizeRegion(regionName, countryCode) {
+  if (!regionName) return '未知';
+  if (String(countryCode || '').toUpperCase() === 'CN') {
+    const map = {
+      zhejiang: '浙江',
+      jiangsu: '江苏',
+      guangdong: '广东',
+      beijing: '北京',
+      shanghai: '上海',
+      sichuan: '四川',
+      hubei: '湖北'
+    };
+    const key = String(regionName).trim().toLowerCase();
+    return map[key] || regionName;
+  }
+  return regionName;
+}
+
+function localizeCity(cityName, countryCode) {
+  if (!cityName) return '未知';
+  const raw = String(cityName).trim();
+  const key = raw.toLowerCase();
+  const normalizedKey = key.replace(/\s+/g, '');
+  const mapped = CITY_NAME_ZH_MAP[key] || CITY_NAME_ZH_MAP[normalizedKey];
+  if (mapped) return mapped;
+  if (String(countryCode || '').toUpperCase() === 'CN') return raw;
+  return raw;
 }
 
 function computeFraudScore(baseFraudScore, record) {
