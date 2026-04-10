@@ -17,7 +17,7 @@
   "options_page": "options.html",
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
+      "matches": ["http://*/*", "https://*/*", "file://*/*"],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
@@ -25,8 +25,8 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["lib/content-main.js"],
-      "matches": ["http://*/*", "https://*/*"]
+      "resources": ["lib/*.js"],
+      "matches": ["http://*/*", "https://*/*", "file://*/*"]
     }
   ],
   "action": {

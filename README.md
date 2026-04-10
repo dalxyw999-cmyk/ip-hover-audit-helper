@@ -4,6 +4,8 @@
 
 ## 当前能力
 
+这个仓库当前已经是“IP + 手机号”合并版，不是两个完全分开的 Chrome 扩展。
+
 - 全中文 UI
 - 自动识别网页中的 IPv4 文本
 - 自动识别网页中的中国大陆手机号
@@ -49,6 +51,7 @@ ip-hover-audit-helper/
 3. 选择“加载已解压的扩展程序”
 4. 选择本项目的 `extension/` 目录
 5. 点击扩展的“详细信息”或“扩展选项”进入设置页
+6. 如果你要直接打开本地测试页 `docs/test-page.html` 来验证，请在扩展详情里打开“允许访问文件网址”
 
 ## 推荐首次配置
 
@@ -79,6 +82,11 @@ npm run check
 ```bash
 node scripts/evaluate-sources.mjs
 ```
+
+## 本地测试页
+
+- IP 测试页：`docs/test-page.html`
+- 手机号测试页：`docs/test-phone.html`
 
 ## 重要说明
 
